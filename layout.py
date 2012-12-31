@@ -35,6 +35,9 @@ def head():
                 cursor: pointer;
                 opacity:1.0;
             }
+            text.plane {
+                font-size:24px;
+            }
         ]]>
     </style>
     <!--polygon points="100,10 40,180 190,60 10,60 160,180"
@@ -97,24 +100,26 @@ def single(ranges, rowheightpx, i, di):
     if 'children' in di:
         guts = children(ranges, rowheightpx, di)
     elif totalrange == 0x110000:
-        guts = '<rect class="foo" x="%.1f" y="%.1f" width="%.1f" height="%.1f" />' % (
-                    ox + x, oy + y, w-1, h-1)
+        guts = """
+            <rect class="foo" x="%.1f" y="%.1f" width="%.1f" height="%.1f" />
+            <text class="plane" x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text>
+            """ % (ox + x, oy + y, w-1, h-1,
+                   ox + x, oy + y, (w-1)/2, (h-1)/2, di['name'])
     else:
         guts = ''
+        will_overlap = x + w > 256
         while x + w > 0:
             ww = min(w, 256 - x)
             w -= ww
             guts += '<rect class="foo" x="%.1f" y="%.1f" width="%.1f" height="%.1f" />' % (
-                ox + x, oy + y, ww-1, h)
+                ox + x, oy + y, ww-1, h + int(will_overlap and w > 0))
             x = 0
             y += 16
     return """
         <g title="%s" class="tile">
             %s
-            <!--text x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text-->
         </g>""" % (di['name'],
-               guts,
-               x, y, w/2, h/2, di['name'])
+               guts)
 
 def layout(ranges, rowheightpx, data, pad=1):
     return ''.join(single(ranges, rowheightpx, i, di)
