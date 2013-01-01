@@ -31,19 +31,26 @@ def head():
                 stroke:rgb(0,0,0);
                 opacity:0.5;
             }
-            rect.foo:hover, polygon.foo:hover {
-                cursor: pointer;
+            a > rect.foo:hover, a > polygon.foo:hover {
+                /*cursor: pointer;*/
                 opacity:1.0;
-                fill:rgb(255,0,0);
+                /*fill:rgb(255,196,196);*/
+                fill:rgb(129, 159, 247); /* darker */
             }
             rect.plane {
-                fill:rgb(220,220,255);
+                /*fill:rgb(220,220,255);*/
+                stroke-width:1px;
+                /*stroke:rgb(220,220,255);*/
+                stroke:rgb(130,130,255);
+                fill:rgb(255,255,255);
             }
             text.plane {
                 font-size:24px;
             }
             .Unused {
-                opacity: 0.1;
+                /*stroke-width:1px;*/
+                /*stroke:rgb(220,220,255);*/
+                fill:rgb(239, 245, 251);
             }
         ]]>
     </style>
@@ -67,16 +74,8 @@ $(document).ready(function() {
 </body>
 </html>"""
 
-"""
-
-data [{hi,lo,name},...]
-
-coderange       1m  64k
-rowheightpx     256 16
-
-cellrange       64k 256-32
-
-"""
+def linesize(): return 16
+def blocksize(): return linesize() ** 2
 
 def pow2near(n): return int(math.log(n) / math.log(2))
 
@@ -87,6 +86,18 @@ def coderange(d):
     lo = int(d['lo'], 16)
     return hi - lo + 1
 
+def linkurl(di):
+    if di['name'] == 'Unused':
+        return None
+    else:
+        return 'http://www.unicode.org/charts/PDF/U%04X.pdf' % int(di['lo'],16)
+
+def linkwrap(svg, di):
+    url = linkurl(di)
+    if url:
+        svg = ('<a xlink:href="%s">' % url) + svg + '</a>'
+    return svg
+
 def children(ranges, rowheightpx, di):
     if not 'children' in di:
         return ''
@@ -94,35 +105,17 @@ def children(ranges, rowheightpx, di):
     return ''.join(layout(ranges + [coderange(di), coderange(di['children'][0])],
                 rowheightpx, di['children']))
 
-"""
-
-<polygon fill="lime" stroke="blue" stroke-width="10" 
-    points="850,75  958,137.5 958,262.5
-            850,325 742,262.6 742,137.5" />
-
-[x][ ][ ]
-[ ][ ][ ]
-[ ][ ][ ]
-
-[ ][ ][x]
-[x][x][x]
-[ ][ ][ ]
-
-[ ][ ][x]
-[x][x][x]
-[x][ ][ ]
-
-"""
-
 # [(x,y,w,h),...]
 def shape(sq, di):
     if (len(sq) == 1):
         (x,y,w,h) = sq[0]
-        return """
+        svg = """
         <rect class="foo %s" x="%.1f" y="%.1f" width="%.1f" height="%.1f">
             <title>%s (%s-%s)</title>
         </rect>
-        """ % (cssclass(di['name']), x, y, w, h, di['name'], di['lo'], di['hi'])
+        """ % (cssclass(di['name']), x, y, w, h,
+                di['name'], di['lo'], di['hi'])
+        return linkwrap(svg, di)
     else:
         pts = []
         # 1st: top left, top right, bottom left
@@ -142,49 +135,54 @@ def shape(sq, di):
         (x2,y2,w2,h2) = sq[-2]
         if x2+w2 > x+w:
             pts.append((x2+w2,y2+h2))
-        t = """
+        svg = """
         <polygon class="foo %s" stroke-width="0" points="%s">
             <title>%s (%s-%s)</title>
         </polygon>
         """ % (cssclass(di['name']),
                ' '.join('%g,%g' % (x,y) for x,y in pts), di['name'], di['lo'], di['hi'])
-        return t
+        return linkwrap(svg, di)
 
 def single(ranges, rowheightpx, i, di):
     lo = int(di['lo'], 16)
     totalrange = ranges[-1]
     cr = coderange(di)
-    linesize = 16
-    blocksize = linesize ** 2
-    ox = (int(lo / 65536) * blocksize) % (blocksize * 4)
-    xx = float(lo) / linesize
-    oy = int(float(lo) / 0x40000) * blocksize
-    w = float(cr) / linesize if cr < 65536 else blocksize
+    bs = blocksize()
+    ox = (int(lo / 65536) * bs) % (bs * 4)
+    xx = float(lo) / linesize()
+    oy = int(float(lo) / 0x40000) * bs
+    w = float(cr) / linesize() if cr < 65536 else bs
     h = rowheightpx
-    y = int((xx % (0x10000 / linesize)) / blocksize) * linesize
-    x = xx % blocksize
-    if oy == blocksize * 4:
-        oy -= blocksize
-        ox = blocksize * 4
+    y = int((xx % (0x10000 / linesize())) / bs) * linesize()
+    x = xx % bs 
+    if oy == bs * 4:
+        oy -= bs 
+        ox = bs * 4
     #print 'totalrange=%u coderange=%u lo=%x xx=%u w=%u h=%g oy=%g y=%g' % (
             #totalrange, cr, lo, xx, w, h, oy, y)
     if 'children' in di:
         guts = children(ranges, rowheightpx, di)
+        guts += """
+        <text class="plane" x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text>
+        """ % (ox + x, oy + y, (w-1)/2, (h-1)/2, di['name'])
     elif totalrange == 0x110000:
         guts = """
-            <rect class="foo plane" x="%.1f" y="%.1f" width="%.1f" height="%.1f" />
+            <rect class="foo plane" x="%.1f" y="%.1f" width="%.1f" height="%.1f">
+                <title>%s</title>
+            </rect>
             <text class="plane" x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text>
             """ % (ox + x, oy + y, w-1, h-1,
+                   di['name'],
                    ox + x, oy + y, (w-1)/2, (h-1)/2, di['name'])
     else:
         points = []
-        will_overlap = x + w > blocksize
+        will_overlap = x + w > bs
         while x + w > 0:
-            ww = min(w, blocksize - x)
+            ww = min(w, bs - x)
             w -= ww
             points.append((ox + x, oy + y, ww-1, h)) # + int(will_overlap and w > 0)))
             x = 0
-            y += linesize
+            y += linesize()
         guts = shape(points, di)
     return """
         <g title="%s" class="tile">
@@ -199,6 +197,6 @@ def layout(ranges, rowheightpx, data, pad=1):
 if __name__ == '__main__':
     u = json.loads(open('unicode-codespace.json').read())
     #print codespace
-    data = layout([coderange(u)], 256, u['children'])
+    data = layout([coderange(u)], blocksize(), u['children'])
     print head() + data + foot()
 
