@@ -25,7 +25,7 @@ def head():
                 letter-spacing:-0.1em;
                 font-weight:100;
             }
-            .foo { 
+            .foo {
                 fill:rgb(130,130,255);
                 stroke-width:0;
                 stroke:rgb(0,0,0);
@@ -74,8 +74,13 @@ $(document).ready(function() {
 </body>
 </html>"""
 
+# height of an individual line
 def linesize(): return 16
-def blocksize(): return linesize() ** 2
+
+def linewidth(): return linesize() ** 2
+
+# number of lines per block
+def blocksize(): return linesize() * 16
 
 def pow2near(n): return int(math.log(n) / math.log(2))
 
@@ -98,12 +103,11 @@ def linkwrap(svg, di):
         svg = ('<a xlink:href="%s">' % url) + svg + '</a>'
     return svg
 
-def children(ranges, rowheightpx, di):
+def children(ranges, h, di):
     if not 'children' in di:
         return ''
-    rowheightpx = rowheightpx / math.sqrt(math.sqrt(coderange(di))) - 1
     return ''.join(layout(ranges + [coderange(di), coderange(di['children'][0])],
-                rowheightpx, di['children']))
+                h / math.sqrt(math.sqrt(coderange(di))) - 1, di['children']))
 
 # [(x,y,w,h),...]
 def shape(sq, di):
@@ -143,37 +147,60 @@ def shape(sq, di):
                ' '.join('%g,%g' % (x,y) for x,y in pts), di['name'], di['lo'], di['hi'])
         return linkwrap(svg, di)
 
-def single(ranges, rowheightpx, i, di):
+def serialize(x):
+    if type(x) in [type(0.0),type(0)]: return '%g' % x
+    if type(x) == type([]): return ' '.join(x)
+    return '%s' % x
+
+def tag(name, attr, contents=''):
+    return '<' + name + ' ' + \
+            ' '.join('%s="%s"' % (x,serialize(y)) for x,y in attr) + '>' + contents + '</' + name + '>'
+
+def single(ranges, h, i, di):
     lo = int(di['lo'], 16)
     totalrange = ranges[-1]
     cr = coderange(di)
     bs = blocksize()
-    ox = (int(lo / 65536) * bs) % (bs * 4)
+    # offset x: calculate the absolute x for the left side of a codeblock
+    ox = (int(lo / 0x10000) * bs) % (bs * 4)
+    # 
     xx = float(lo) / linesize()
+    x = xx % bs
+    # 
     oy = int(float(lo) / 0x40000) * bs
-    w = float(cr) / linesize() if cr < 65536 else bs
-    h = rowheightpx
+    w = float(cr) / linesize() if cr < 0x10000 else bs
     y = int((xx % (0x10000 / linesize())) / bs) * linesize()
-    x = xx % bs 
     if oy == bs * 4:
-        oy -= bs 
+        oy -= bs
         ox = bs * 4
     #print 'totalrange=%u coderange=%u lo=%x xx=%u w=%u h=%g oy=%g y=%g' % (
             #totalrange, cr, lo, xx, w, h, oy, y)
     if 'children' in di:
-        guts = children(ranges, rowheightpx, di)
-        guts += """
-        <text class="plane" x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text>
-        """ % (ox + x, oy + y, (w-1)/2, (h-1)/2, di['name'])
+        guts = children(ranges, h, di)
+        guts += tag('text',
+                    [('class','plane'),
+                     ('x', ox + x),
+                     ('y', oy + y),
+                     ('dx', (w-1)/2),
+                     ('dy', (h-1)/2),
+                     ('text-anchor', 'middle')],
+                    di['name'])
     elif totalrange == 0x110000:
-        guts = """
-            <rect class="foo plane" x="%.1f" y="%.1f" width="%.1f" height="%.1f">
-                <title>%s</title>
-            </rect>
-            <text class="plane" x="%u" y="%u" dx="%.1f" dy="%.1f" text-anchor="middle">%s</text>
-            """ % (ox + x, oy + y, w-1, h-1,
-                   di['name'],
-                   ox + x, oy + y, (w-1)/2, (h-1)/2, di['name'])
+        guts = tag('rect',
+                [('class',['foo','plane']),
+                 ('x', ox + x),
+                 ('y', oy + y),
+                 ('width', w - 1),
+                 ('height', h - 1)],
+                    tag('title',[], di['name'])) + \
+                tag('text',
+                    [('class', 'plane'),
+                     ('x', ox + x),
+                     ('y', oy + y),
+                     ('dx', (w-1)/2),
+                     ('dy', (h-1)/2),
+                     ('text-anchor', 'middle')],
+                    di['name'])
     else:
         points = []
         will_overlap = x + w > bs
@@ -184,11 +211,10 @@ def single(ranges, rowheightpx, i, di):
             x = 0
             y += linesize()
         guts = shape(points, di)
-    return """
-        <g title="%s" class="tile">
-            %s
-        </g>""" % (di['name'],
-               guts)
+    return tag('g',
+            [('title', di['name']),
+             ('class', 'tile')],
+            guts)
 
 def layout(ranges, rowheightpx, data, pad=1):
     return ''.join(single(ranges, rowheightpx, i, di)
