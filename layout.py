@@ -5,7 +5,7 @@ import math
 def blockswide(): return 5
 def blockshigh(): return 4
 
-def scale(): return 2.8
+def scale(): return 2
 
 # pixels per line
 # FIXME: also implicitly chars per column
@@ -41,22 +41,24 @@ def head():
             }
             .foo {
                 fill:rgb(130,130,255);
+                fill:rgb(206, 216, 246);
                 stroke-width:0;
                 stroke:rgb(0,0,0);
-                opacity:0.5;
             }
             a > rect.foo:hover, a > polygon.foo:hover {
                 /*cursor: pointer;*/
                 opacity:1.0;
                 /*fill:rgb(255,196,196);*/
-                fill:rgb(129, 159, 247); /* darker */
+                fill:rgb(169, 188, 245); /* darker */
             }
             rect.plane {
                 /*fill:rgb(220,220,255);*/
-                stroke-width:1px;
+                stroke-width:0px;
                 /*stroke:rgb(220,220,255);*/
                 stroke:rgb(130,130,255);
+                stroke:rgb(0,0,0);
                 fill:rgb(255,255,255);
+                fill:rgb(239, 245, 251);
             }
             text.plane {
                 font-size:%upx;
@@ -182,6 +184,7 @@ def single(ranges, h, i, di):
     #print 'totalrange=%u coderange=%u lo=%x xx=%u w=%u h=%g oy=%g y=%g' % (
             #totalrange, cr, lo, xx, w, h, oy, y)
     if 'children' in di:
+
         guts = children(ranges, h, di)
         guts += tag('text',
                     [('class','plane'),
@@ -191,14 +194,35 @@ def single(ranges, h, i, di):
                      ('dy', (h * scale()) / 2),
                      ('text-anchor', 'middle')],
                     di['name'])
+
     elif totalrange == 0x110000:
+
+        anim = ''
+        """
+        if di['name'] == 'Plane 4':
+            anim = tag('animateTransform',
+                        [('attributeName','transform'),
+                         ('type','scale'),
+                         ('from','1'),
+                         ('to','2'),
+                         ('additive','replace'),
+                         ('accumulate','sum'),
+                         ('begin','0s'),
+                         ('dur','1.0s'),
+                         ('fill','freeze')])
+                        #<animateTransform attributeName="transform"
+                        #attributeType="XML" type="scale" from="1" to="3"
+                        #additive="sum" begin="1s" dur="5s" fill="freeze"/>
+        """
+
         guts = tag('rect',
                 [('class',['foo','plane']),
                  ('x', (ox + x) * scale()),
                  ('y', (oy + y) * scale()),
                  ('width', w * scale() - 1),
-                 ('height', h * scale() - 1)],
-                    tag('title',[], di['name'])) + \
+                 ('height', h * scale() - 1),
+                 ('onclick', """(function (evt){console.log(evt);evt.target.setAttribute('width','500px')})(evt)""")],
+                    tag('title',[], di['name']) + anim) + \
                 tag('text',
                     [('class', 'plane'),
                      ('x', (ox + x) * scale()),
@@ -207,6 +231,7 @@ def single(ranges, h, i, di):
                      ('dy', (h * scale()) / 2),
                      ('text-anchor', 'middle')],
                     di['name'])
+
     else:
         points = []
         while x + w > 0:
