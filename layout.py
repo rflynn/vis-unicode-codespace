@@ -17,26 +17,21 @@ def linewidth(): return linesize() ** 2
 def blocksize(): return linesize() * 16
 
 def head():
-    return """<!doctype html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-    <!--script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script-->
-    <style type="text/css">
-        body { margin:0 }
-    </style>
-</head>
-<body>
-<svg id="chart" xmlns="http://www.w3.org/2000/svg" version="1.1" width="%g" height="%g">
+    return """
+<svg version="1.1" id="chart" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%g" height="%g" preserveAspectRatio="xMinYMin meet" viewBox="0 0 %u %u">
     <style type="text/css" >
         <![CDATA[
             @font-face {
                 font-family: 'OpenSans Condensed';
                 src: url('OpenSans-CondLight.ttf') format('truetype');
             }
+            @font-face {
+                font-family: 'RothmanPlain';
+                src: url('RothmanPlain.ttf') format('truetype');
+            }
             * {
                 font-family: 'OpenSans Condensed','Helvetica Narrow','Arial Narrow',Tahoma,Arial,Helvetica,sans-serif;
-                letter-spacing:-0.1em;
+                letter-spacing:-0.075em;
                 font-weight:100;
             }
             .foo {
@@ -46,19 +41,16 @@ def head():
                 stroke:rgb(0,0,0);
             }
             a > rect.foo:hover, a > polygon.foo:hover {
-                /*cursor: pointer;*/
                 opacity:1.0;
-                /*fill:rgb(255,196,196);*/
                 fill:rgb(169, 188, 245); /* darker */
             }
             rect.plane {
-                /*fill:rgb(220,220,255);*/
                 stroke-width:0px;
-                /*stroke:rgb(220,220,255);*/
                 stroke:rgb(130,130,255);
                 stroke:rgb(0,0,0);
-                fill:rgb(255,255,255);
+                /*fill:rgb(255,255,255);*/
                 fill:rgb(239, 245, 251);
+                opacity:0.5;
             }
             text.plane {
                 font-size:%upx;
@@ -72,19 +64,11 @@ def head():
     </style>
     """ % (blocksize() * blockswide() * scale(),
            blocksize() * blockshigh() * scale(),
-           25 * scale())
+           blocksize() * blockswide() * scale(),
+           blocksize() * blockshigh() * scale(),
+           27 * scale())
 
-def foot():
-    return """
-</svg>
-<script>
-$(document).ready(function() {
-    $('#chart');
-});
-</script>
-</body>
-</html>"""
-
+def foot(): return "</svg>"
 
 def pow2near(n): return int(math.log(n) / math.log(2))
 
