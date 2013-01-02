@@ -2,6 +2,20 @@
 import json
 import math
 
+def blockswide(): return 5
+def blockshigh(): return 4
+
+def scale(): return 2.8
+
+# pixels per line
+# FIXME: also implicitly chars per column
+def linesize(): return 16
+
+def linewidth(): return linesize() ** 2
+
+# number of lines per block
+def blocksize(): return linesize() * 16
+
 def head():
     return """<!doctype html>
 <html>
@@ -13,7 +27,7 @@ def head():
     </style>
 </head>
 <body>
-<svg id="chart" xmlns="http://www.w3.org/2000/svg" version="1.1" height="1024" width="1280">
+<svg id="chart" xmlns="http://www.w3.org/2000/svg" version="1.1" width="%g" height="%g">
     <style type="text/css" >
         <![CDATA[
             @font-face {
@@ -45,7 +59,7 @@ def head():
                 fill:rgb(255,255,255);
             }
             text.plane {
-                font-size:24px;
+                font-size:%upx;
             }
             .Unused {
                 /*stroke-width:1px;*/
@@ -54,17 +68,12 @@ def head():
             }
         ]]>
     </style>
-    <!--polygon points="100,10 40,180 190,60 10,60 160,180"
-        style="fill:lime;stroke:purple;stroke-width:5;fill-rule:evenodd;"-->
-    <!--clipPath id="clip1">
-        <rect x="0" y="0" width="60" height="50"/>
-    </clipPath>
-    <text clip-path="url(#clip1)" style="color:#ff0" dx="0" dy="12" font-size="23" x="6" y="6">text</text-->
-    """
+    """ % (blocksize() * blockswide() * scale(),
+           blocksize() * blockshigh() * scale(),
+           25 * scale())
 
 def foot():
     return """
-    <!--text x="0" y="0" dx="0" dy="24" clip-path="" style="color:#ff0" font-size="24">jIQLW`,</text-->
 </svg>
 <script>
 $(document).ready(function() {
@@ -74,13 +83,6 @@ $(document).ready(function() {
 </body>
 </html>"""
 
-# height of an individual line
-def linesize(): return 16
-
-def linewidth(): return linesize() ** 2
-
-# number of lines per block
-def blocksize(): return linesize() * 16
 
 def pow2near(n): return int(math.log(n) / math.log(2))
 
@@ -107,45 +109,7 @@ def children(ranges, h, di):
     if not 'children' in di:
         return ''
     return ''.join(layout(ranges + [coderange(di), coderange(di['children'][0])],
-                h / math.sqrt(math.sqrt(coderange(di))) - 1, di['children']))
-
-# [(x,y,w,h),...]
-def shape(sq, di):
-    if (len(sq) == 1):
-        (x,y,w,h) = sq[0]
-        svg = """
-        <rect class="foo %s" x="%.1f" y="%.1f" width="%.1f" height="%.1f">
-            <title>%s (%s-%s)</title>
-        </rect>
-        """ % (cssclass(di['name']), x, y, w, h,
-                di['name'], di['lo'], di['hi'])
-        return linkwrap(svg, di)
-    else:
-        pts = []
-        # 1st: top left, top right, bottom left
-        (x,y,w,h) = sq[0]
-        pts.append((x+w,y))
-        pts.append((x,  y))
-        pts.append((x,  y+h+1))
-        # 2nd: top left
-        (x,y,w,h) = sq[1]
-        pts.append((x,  y))
-        # last: bottom left, bottom right, top right
-        (x,y,w,h) = sq[-1]
-        pts.append((x,  y+h))
-        pts.append((x+w,y+h))
-        pts.append((x+w,y-1))
-        # second to last if necessary
-        (x2,y2,w2,h2) = sq[-2]
-        if x2+w2 > x+w:
-            pts.append((x2+w2,y2+h2))
-        svg = """
-        <polygon class="foo %s" stroke-width="0" points="%s">
-            <title>%s (%s-%s)</title>
-        </polygon>
-        """ % (cssclass(di['name']),
-               ' '.join('%g,%g' % (x,y) for x,y in pts), di['name'], di['lo'], di['hi'])
-        return linkwrap(svg, di)
+                h / math.sqrt(math.sqrt(coderange(di))), di['children']))
 
 def serialize(x):
     if type(x) in [type(0.0),type(0)]: return '%g' % x
@@ -153,8 +117,50 @@ def serialize(x):
     return '%s' % x
 
 def tag(name, attr, contents=''):
-    return '<' + name + ' ' + \
-            ' '.join('%s="%s"' % (x,serialize(y)) for x,y in attr) + '>' + contents + '</' + name + '>'
+    return '<%s %s>%s</%s>\n' % (
+            name,
+            ' '.join('%s="%s"' % (x,serialize(y)) for x,y in attr),
+            contents,
+            name)
+
+# [(x,y,w,h),...]
+def shape(sq, di):
+    if (len(sq) == 1):
+        (x,y,w,h) = sq[0]
+        svg = tag('rect',
+                [('class',['foo',cssclass(di['name'])]),
+                 ('x', x),
+                 ('y', y),
+                 ('width', w),
+                 ('height', h-1)],
+                    tag('title', [],
+                        '%s (%s-%s)' % (di['name'], di['lo'], di['hi'])))
+        return linkwrap(svg, di)
+    else:
+        pts = []
+        # 1st: top left, top right, bottom left
+        (x,y,w,h) = sq[0]
+        pts.append((x+w,y))
+        pts.append((x,  y))
+        pts.append((x,  y+h))
+        # 2nd: top left
+        (x,y,w,h) = sq[1]
+        pts.append((x,  y))
+        # last: bottom left, bottom right, top right
+        (x,y,w,h) = sq[-1]
+        pts.append((x,  y+h-1))
+        pts.append((x+w,y+h-1))
+        pts.append((x+w,y-1))
+        # second to last if necessary
+        (x2,y2,w2,h2) = sq[-2]
+        if x2+w2 > x+w:
+            pts.append((x2+w2,y2+h2-1))
+        svg = tag('polygon',
+                [('class',['foo',cssclass(di['name'])]),
+                 ('points', ' '.join('%g,%g' % (x,y) for x,y in pts))],
+                    tag('title', [],
+                        '%s (%s-%s)' % (di['name'], di['lo'], di['hi'])))
+        return linkwrap(svg, di)
 
 def single(ranges, h, i, di):
     lo = int(di['lo'], 16)
@@ -179,35 +185,38 @@ def single(ranges, h, i, di):
         guts = children(ranges, h, di)
         guts += tag('text',
                     [('class','plane'),
-                     ('x', ox + x),
-                     ('y', oy + y),
-                     ('dx', (w-1)/2),
-                     ('dy', (h-1)/2),
+                     ('x', (ox + x) * scale()),
+                     ('y', (oy + y) * scale()),
+                     ('dx', (w * scale()) / 2),
+                     ('dy', (h * scale()) / 2),
                      ('text-anchor', 'middle')],
                     di['name'])
     elif totalrange == 0x110000:
         guts = tag('rect',
                 [('class',['foo','plane']),
-                 ('x', ox + x),
-                 ('y', oy + y),
-                 ('width', w - 1),
-                 ('height', h - 1)],
+                 ('x', (ox + x) * scale()),
+                 ('y', (oy + y) * scale()),
+                 ('width', w * scale() - 1),
+                 ('height', h * scale() - 1)],
                     tag('title',[], di['name'])) + \
                 tag('text',
                     [('class', 'plane'),
-                     ('x', ox + x),
-                     ('y', oy + y),
-                     ('dx', (w-1)/2),
-                     ('dy', (h-1)/2),
+                     ('x', (ox + x) * scale()),
+                     ('y', (oy + y) * scale()),
+                     ('dx', (w * scale()) / 2),
+                     ('dy', (h * scale()) / 2),
                      ('text-anchor', 'middle')],
                     di['name'])
     else:
         points = []
-        will_overlap = x + w > bs
         while x + w > 0:
             ww = min(w, bs - x)
             w -= ww
-            points.append((ox + x, oy + y, ww-1, h)) # + int(will_overlap and w > 0)))
+            points.append(
+                ((ox + x) * scale(),
+                 (oy + y) * scale(),
+                 ww * scale() - 1,
+                 h * scale()))
             x = 0
             y += linesize()
         guts = shape(points, di)
@@ -216,13 +225,14 @@ def single(ranges, h, i, di):
              ('class', 'tile')],
             guts)
 
-def layout(ranges, rowheightpx, data, pad=1):
-    return ''.join(single(ranges, rowheightpx, i, di)
+def layout(ranges, h, data, pad=1):
+    return ''.join(single(ranges, h, i, di)
                     for i,di in enumerate(data))
 
 if __name__ == '__main__':
     u = json.loads(open('unicode-codespace.json').read())
     #print codespace
-    data = layout([coderange(u)], blocksize(), u['children'])
+    node = u
+    data = layout([coderange(node)], blocksize(), node['children'])
     print head() + data + foot()
 
