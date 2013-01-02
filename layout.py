@@ -50,6 +50,7 @@ def head():
             }
             text.plane {
                 font-size:%upx;
+                pointer-events: none;
             }
             .Unused {
                 fill:rgb(169, 169, 245);
