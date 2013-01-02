@@ -35,30 +35,25 @@ def head():
                 font-weight:100;
             }
             .foo {
-                fill:rgb(130,130,255);
-                fill:rgb(206, 216, 246);
+                fill:rgb(169, 169, 245);
                 stroke-width:0;
                 stroke:rgb(0,0,0);
             }
             a > rect.foo:hover, a > polygon.foo:hover {
                 opacity:1.0;
-                fill:rgb(169, 188, 245); /* darker */
+                fill:rgb(129, 129, 247); /* darker */
             }
             rect.plane {
                 stroke-width:0px;
-                stroke:rgb(130,130,255);
-                stroke:rgb(0,0,0);
-                /*fill:rgb(255,255,255);*/
-                fill:rgb(239, 245, 251);
+                fill:rgb(169, 169, 245);
                 opacity:0.5;
             }
             text.plane {
                 font-size:%upx;
             }
             .Unused {
-                /*stroke-width:1px;*/
-                /*stroke:rgb(220,220,255);*/
-                fill:rgb(239, 245, 251);
+                fill:rgb(169, 169, 245);
+                opacity:0.5;
             }
         ]]>
     </style>
